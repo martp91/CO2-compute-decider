@@ -119,3 +119,5 @@ if __name__ == "__main__":
     else:
         print("Run later")
 
+plt.savefig("example.png", bbox_inches='tight')
+plt.show()
