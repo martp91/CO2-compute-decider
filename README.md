@@ -16,6 +16,7 @@
 ## TODO: 
 - Implement this in a scheduler
 - Example usage
+- Option to calculate based on percentage of wind/solar/nuclear
 - Add details on how to get api keys
 - Documentation
   
