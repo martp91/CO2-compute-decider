@@ -1,5 +1,5 @@
 # CO2 compute decider 
-## _Get real-time CO2 emission in you rzone and decide if it is the right time to run a large computation considereing the average co2/kwh_ 
+## _Get real-time CO2 emission in your zone and decide if it is the right time to run a large computation considereing the average co2/kwh_ 
 
 ---
 - Get the CO2 emission of the latests 24h from api.electricitymaps.com
