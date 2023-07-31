@@ -8,15 +8,21 @@
 - If so, start computing. If not, wait till the co2 emission drops
 ---
 
+## How to use (in console):
+```console
+./compute.sh {how-to-run-your-script.ext arg1 -arg2 --args3}  
+For example:
+./compute.sh python test.py arg1 -arg2=0 --arg3
+```
+This will run your script when the co2 emission is low, if not it will wait 1 hour and check again untill the co2 emission is low enough as set by co2_compute_decider.py. You can set MAX_HOURS (Default = 12) to then run the script after MAX_HOURS.
+
 ## Example output: 
 ![Example](example.png) 
 ---
 ![Screenshot](screenshot.png)
 
 ## TODO: 
-- Implement this in a scheduler
-- Example usage
 - Option to calculate based on percentage of wind/solar/nuclear
 - Add details on how to get api keys
-- Documentation
+- More documentation
   
