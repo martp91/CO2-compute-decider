@@ -8,7 +8,7 @@ COUNT=0
 
 while true
 do 
-    python co2_compute_decider.py -zone='NL' --verbose --plot
+    python co2_compute_decider.py #--verbose --plot
     code=$?
     if [[ $code -eq 0 ]]; then
         echo

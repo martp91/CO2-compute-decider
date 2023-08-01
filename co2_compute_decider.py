@@ -5,7 +5,6 @@ import numpy as np
 import matplotlib.pyplot as plt
 import pandas as pd
 from scipy.interpolate import UnivariateSpline
-from apscheduler.schedulers.blocking import BlockingScheduler
 
 from config import API_KEY
 
@@ -16,6 +15,19 @@ base_api_url = "https://api-access.electricitymaps.com/free-tier/"
 
 
 def request_to_json(url, headers=HEADERS):
+    """Request with API headers and convert to json
+
+    Parameters
+    ----------
+    url : string
+        https:///etc
+    headers : dict, optional
+        API key, by default HEADERS
+
+    Returns
+    -------
+    dictionary
+    """
     try:
         response = requests.get(url, headers=HEADERS)
     except requests.exceptions.RequestException as e:
@@ -23,22 +35,40 @@ def request_to_json(url, headers=HEADERS):
     return response.json()
 
 
-def request_latest_carbon_intensity(zone=ZONE):
-    url = base_api_url + f"/carbon-intensity/latest?zone={zone}"
+def request_24h_carbon_intensity(zone=ZONE, latlon=None):
+    """get 24h carbon intensity from electricitmaps.com
+
+    Parameters
+    ----------
+    zone : string, optional
+        See the list of zones, default = 'NL', by default ZONE
+    latlon : array like, optional
+        len = 2, with (lat, lon) as strings or floats does not matter, by default None, then use zone
+
+    Returns
+    -------
+    dict
+    """
+    if latlon is None:
+        url = base_api_url + f"/carbon-intensity/history?zone={zone}"
+    else:
+        url = base_api_url + f"/carbon-intensity/history?lat={latlon[0]}&lon={latlon[1]}"
     return request_to_json(url)
 
 
-def request_latest_power_breakdown(zone=ZONE):
-    url = base_api_url + f"/power-breakdown/latest?zone={zone}"
-    return request_to_json(url)
+def calc_stats(CIs):
+    """Calculate stats from carbon intensity
 
+    Parameters
+    ----------
+    CIs : array like
+        24h carbon intensities as requested
 
-def request_24h_carbon_intensity(zone=ZONE):
-    url = base_api_url + f"/carbon-intensity/history?zone={zone}"
-    return request_to_json(url)
-
-
-def calc_stats(CIs, ax=None):
+    Returns
+    -------
+    floats, 
+        min, max, mean, std
+    """
     max_CI = CIs.max()
     min_CI = CIs.min()
     mean_CI = CIs.mean()
@@ -53,6 +83,20 @@ def calc_stats(CIs, ax=None):
 
 
 def spline_interpolation(times, CIs):
+    """spline interpolate times and cis
+
+    Parameters
+    ----------
+    times : array like floats
+    CIs : array like floats
+
+    Returns
+    -------
+    array like floats
+        interpolated times
+        interpolated CIs
+        derivative of spline CIs
+    """
     s = UnivariateSpline(times, CIs, k=3)
     ts = np.linspace(times[0], times[-1], 100)
     ys = s(ts)
@@ -61,7 +105,23 @@ def spline_interpolation(times, CIs):
 
 
 def make_plot_24h(times, CIs, ax=None):
-    min_CI, max_CI, mean_CI, std_CI = calc_stats(CIs, ax=ax)
+    """make 24h plot of CI
+
+    Parameters
+    ----------
+    times : array like float
+        should be hours from 0-24
+    CIs : array like float
+        carbon intensity
+    ax : plt.axes, optional
+        if you want to plot supply axes, by default None
+
+    Returns
+    -------
+    floats
+        mean, latest, latest derivative, min, max, std
+    """
+    min_CI, max_CI, mean_CI, std_CI = calc_stats(CIs)
 
     ts, ys, dydt = spline_interpolation(times, CIs)
 
@@ -81,9 +141,36 @@ def make_plot_24h(times, CIs, ax=None):
         ax.legend()
     return mean_CI, CIs[-1], dydt[-1], min_CI, max_CI, std_CI
 
+def request_latlon_ipinfo():
+    "Get lon, lat based on ip from ipinfo.io"
+    r = requests.get("https://ipinfo.io/loc")
+    return r.text.strip('\n').split(',')
 
-def run_current_CO2_check(zone=ZONE, verbose=True, plot=False, use_derivative=False):
-    history = pd.DataFrame(request_24h_carbon_intensity(zone=zone)["history"])
+
+def run_current_CO2_check(zone=ZONE, latlon=None, verbose=True, plot=False, use_derivative=False):
+    """Get the co2 intensity right now and decide if it is a good time to compute. 
+    Right now if the CI is below the mean of the last 24h, you are good to go, if not returns False
+
+    Parameters
+    ----------
+    zone : string, optional
+        NL or DE or something, by default ZONE
+    latlon : tuple of size 2, optional
+        (lat, lon), by default None
+    verbose : bool, optional
+        verbosity, print some things, by default True
+    plot : bool, optional
+        make 24h plot, by default False
+    use_derivative : bool, optional
+        if true use the latest derivative to decide if the CI is going up or down
+        if it is going down you might want to wait to compute, by default False
+
+    Returns
+    -------
+    bool
+        True compute, False: wait to compute
+    """
+    history = pd.DataFrame(request_24h_carbon_intensity(zone=zone, latlon=latlon)["history"])
     history["datetime"] = pd.to_datetime(history["datetime"])
 
     times = history["datetime"] - history["datetime"].min()
@@ -137,12 +224,17 @@ def run_current_CO2_check(zone=ZONE, verbose=True, plot=False, use_derivative=Fa
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
-
-    parser.add_argument('-zone', default='NL')
+    parser.add_argument('-zone', default=None)
     parser.add_argument("--plot", action="store_true")
     parser.add_argument('--verbose', action='store_true')
     args = parser.parse_args()
-    if run_current_CO2_check(zone=args.zone, plot=args.plot, verbose=args.verbose):
+    latlon = None
+    if args.zone is None:
+        #If no zone is given, estimate the latlon via ip, this is the default setting
+        latlon = request_latlon_ipinfo()
+    
+    #return custom exit code if need to wait
+    if run_current_CO2_check(zone=args.zone, latlon=latlon, plot=args.plot, verbose=args.verbose):
         sys.exit(0)
     else:
         sys.exit(2)

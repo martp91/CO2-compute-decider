@@ -23,6 +23,7 @@ This will run your script when the co2 emission is low, if not it will wait 1 ho
 
 ## TODO: 
 - Option to calculate based on percentage of wind/solar/nuclear
+- Make the plot stay on screen but computationwait should continue
 - Add details on how to get api keys
 - More documentation
   
